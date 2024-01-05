@@ -1,0 +1,1 @@
+INSERT INTO admin(id,admin_name,email,phone,password,address,admin_profile_pic,otp,uuid)VALUES("ADMIN-101","Moin Ahmed","cmoinahmed@gmail.com","8618227093","aBiHOOzLW/EFMiROLIyRNA==","Keshwapur, Hubli","",0,null);
