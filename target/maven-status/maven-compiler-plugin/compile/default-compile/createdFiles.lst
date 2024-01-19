@@ -10,7 +10,6 @@ com\ot\bill\repository\StaffRepository.class
 com\ot\bill\service\BillService.class
 com\ot\bill\model\AdminIdGenerator.class
 com\ot\bill\BillApplication.class
-com\ot\bill\config\AmazonS3Config.class
 com\ot\bill\controller\BillController.class
 com\ot\bill\repository\AdminRepository.class
 com\ot\bill\controller\AdminPasswordResetController.class

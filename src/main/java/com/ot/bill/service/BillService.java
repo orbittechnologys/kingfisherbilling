@@ -1,6 +1,5 @@
 package com.ot.bill.service;
 
-import com.amazonaws.services.s3.AmazonS3;
 import com.itextpdf.io.font.FontConstants;
 import com.itextpdf.kernel.font.PdfFont;
 import com.itextpdf.kernel.font.PdfFontFactory;
