@@ -37,6 +37,10 @@ public class Bill {
 
     private double foodCost;
 
+    private double advancePayment;
+
+    private String customerGstNumber;
+
     private LocalDate checkInDate;
 
     private LocalDate checkOutDate;

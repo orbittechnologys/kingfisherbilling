@@ -11,6 +11,7 @@ import com.itextpdf.layout.Document;
 import com.itextpdf.layout.element.Paragraph;
 import com.itextpdf.layout.property.Property;
 import com.itextpdf.layout.property.TextAlignment;
+import com.lowagie.text.DocumentException;
 import com.ot.bill.dao.BillDao;
 import com.ot.bill.model.Bill;
 import com.ot.bill.model.ResponseStructure;
@@ -26,6 +27,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -41,12 +43,6 @@ public class BillService {
     @Autowired
     private BillDao billDao;
 
-    @Value("${aws.s3.bucketName}")
-    private String bucketName;
-
-    @Autowired
-    private AmazonS3 amazonS3;
-
     public ResponseEntity<ResponseStructure<Bill>> saveBill(Bill bill, double amount, double days) {
         ResponseStructure<Bill> responseStructure = new ResponseStructure<>();
         responseStructure.setStatus(HttpStatus.CREATED.value());
@@ -58,85 +54,73 @@ public class BillService {
 
         double finalAmount = firstAmount + secondAmount;
 
+        if (bill.getAdvancePayment() > 0) {
+            double finalPayment = finalAmount - bill.getAdvancePayment();
+            bill.setTotalCost(finalPayment);
+            bill.setGstNumber("29AEPPD8610N1ZY");
+            bill.setInvoiceNumber("INVOICE-" + UUID.randomUUID().toString().split("-")[0].toUpperCase());
+            bill.setLocalDate(LocalDate.now());
+            Bill b = billDao.saveBill(bill);
+            responseStructure.setData(b);
+            return new ResponseEntity<>(responseStructure, HttpStatus.CREATED);
+        }
         bill.setTotalCost(finalAmount);
-
         bill.setGstNumber("29AEPPD8610N1ZY");
-
         bill.setInvoiceNumber("INVOICE-" + UUID.randomUUID().toString().split("-")[0].toUpperCase());
         bill.setLocalDate(LocalDate.now());
         Bill b = billDao.saveBill(bill);
-
         responseStructure.setData(b);
-
         return new ResponseEntity<>(responseStructure, HttpStatus.CREATED);
     }
 
-    public void generateUserPDF(Bill bill, String pdfFileName) throws IOException {
-        PdfWriter writer = new PdfWriter(pdfFileName);
-        PageSize customPageSize = new PageSize(35 * 72, 37 * 72);
-        PdfDocument pdf = new PdfDocument(writer);
-        pdf.setDefaultPageSize(customPageSize);
-        Document document = new Document(pdf);
+    public static byte[] generateBillPdf(Bill bill) throws IOException {
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+
+        try (PdfWriter writer = new PdfWriter(byteArrayOutputStream);
+             PdfDocument pdfDocument = new PdfDocument(writer);
+             Document document = new Document(pdfDocument)) {
+            generateUserPDF(document, bill);
+        }
+        return byteArrayOutputStream.toByteArray();
+    }
+
+    public static void generateUserPDF(Document document, Bill bill) throws IOException {
         LocalDateTime currentTime = LocalDateTime.now();
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd   " + "HH:mm:ss");
         String formattedDateTime = currentTime.format(formatter);
-
-        Paragraph paragraph = new Paragraph();
-        Paragraph phone = new Paragraph();
-        Paragraph firstline = new Paragraph();
-
-        paragraph.add("KINGFISHER RESORT DANDELI");
-        phone.add("8 9 7 1 9 5 7 8 9 0").setBold();
-        phone.setTextAlignment(TextAlignment.RIGHT);
-        phone.setFontSize(100);
-        firstline.add("======================================");
-        paragraph.setTextAlignment(TextAlignment.LEFT);
-        paragraph.setFontSize(160).setBold();
-        firstline.setFontSize(100);
+        Paragraph paragraph = new Paragraph("KINGFISHER RESORT DANDELI");
+        Paragraph phone = new Paragraph("8 9 7 1 9 5 7 8 9 0").setTextAlignment(TextAlignment.RIGHT);
+        Paragraph firstline = new Paragraph("=========================");
         Paragraph userDetails = new Paragraph();
-
         userDetails.add("DT TM	     :          ");
-        userDetails.add(formattedDateTime + "\n").setFontSize(82);
+        userDetails.add(formattedDateTime + "\n");
         userDetails.add("Gst Number.   :            ");
-        userDetails.add(bill.getGstNumber() + "\n").setFontSize(80);
+        userDetails.add(bill.getGstNumber() + "\n");
         userDetails.add("Invoice No   :         ");
-        userDetails.add(bill.getInvoiceNumber() + "\n").setFontSize(80);
+        userDetails.add(bill.getInvoiceNumber() + "\n");
         userDetails.add("Customer Name    :         ");
-        userDetails.add(bill.getCustomerName() + "\n").setFontSize(80);
-        userDetails.add("Customer PhoneNumber   :           ");
-        userDetails.add(bill.getCustomerPhone() + "\n").setFontSize(80);
+        userDetails.add(bill.getCustomerName() + "\n");
+        userDetails.add("Customer PhoneNumber   :       ");
+        userDetails.add(bill.getCustomerPhone() + "\n");
         userDetails.add("Activity :         ");
-        userDetails.add(bill.getActivity() + "\n").setFontSize(80);
+        userDetails.add(bill.getActivity() + "\n");
         userDetails.add("Food    :          ");
-        userDetails.add(bill.getFoodCost() + "\n").setFontSize(80);
+        userDetails.add(bill.getFoodCost() + "\n");
         userDetails.add("Payment Mode:          ");
-        userDetails.add(bill.getModeOfPayment() + "\n").setFontSize(80);
+        userDetails.add(bill.getModeOfPayment() + "\n");
         userDetails.add("Amenity:           ");
-        userDetails.add(bill.getExtraAmenity() + "\n").setFontSize(80);
+        userDetails.add(bill.getExtraAmenity() + "\n");
         userDetails.add("Total Customer:            ");
-        userDetails.add(bill.getTotalCustomer() + "\n").setFontSize(80);
+        userDetails.add(bill.getTotalCustomer() + "\n");
         userDetails.add("Check In Date:             ");
-        userDetails.add(bill.getCheckInDate() + "\n").setFontSize(80);
+        userDetails.add(bill.getCheckInDate() + "\n");
         userDetails.add("Check Out Date:            ");
-        userDetails.add(bill.getCheckOutDate() + "\n").setFontSize(80);
+        userDetails.add(bill.getCheckOutDate() + "\n");
         userDetails.add("Total Cost:            ");
-        userDetails.add(bill.getTotalCost() + "").setFontSize(80);
-
-
-        userDetails.setFontSize(84);
+        userDetails.add(bill.getTotalCost() + "");
         userDetails.setBold();
-
-        Paragraph endline = new Paragraph();
-        endline.add("======================================" + "\n");
-        endline.setFontSize(100);
-
-        Paragraph tq = new Paragraph();
-        tq.add("THANK YOU").setBold();
-        tq.setFontSize(100);
-        tq.setTextAlignment(TextAlignment.CENTER);
-
-        PdfFont defaultFont = PdfFontFactory.createFont(FontConstants.TIMES_ROMAN);
-        document.setProperty(Property.FONT, defaultFont);
+        Paragraph endline = new Paragraph("=========================\n");
+        Paragraph tq = new Paragraph("THANK YOU").setTextAlignment(TextAlignment.CENTER);
         document.add(paragraph);
         document.add(phone);
         document.add(firstline);
@@ -144,16 +128,6 @@ public class BillService {
         document.add(endline);
         document.add(tq);
         document.close();
-        pdf.close();
-        System.out.println("PDF created successfully.");
-    }
-
-    public String uploadToUserS3Bucket(String pdfFileName1) {
-        String userBucket = "awsbucket99999";
-        String folderName = "KingFisherBillpdf";
-        String key = folderName + "/" + pdfFileName1;
-        amazonS3.putObject(userBucket, key, new File(pdfFileName1));
-        return amazonS3.getUrl(userBucket, key).toString();
     }
 
     public ResponseEntity<ResponseStructure<Page<Bill>>> getBillsWithPaginationAndSorting(int offset, int pageSize, String field) {
@@ -206,13 +180,13 @@ public class BillService {
                  CSVPrinter csvPrinter = new CSVPrinter(writer, CSVFormat.DEFAULT)) {
                 csvPrinter.printRecord("Customer Name", "Customer Email", "Customer PhoneNumber", "Total Customer",
                         "Activity", "Extra Amenity", "Food Cost", "CheckIn Date", "CheckOut Date", "Gst Number",
-                        "Invoice Number", "Bill Date Time", "Mode Of Payment");
+                        "Invoice Number", "Bill Date Time", "Mode Of Payment", "Total Cost");
                 for (Bill transac : bill) {
                     csvPrinter.printRecord(
                             transac.getCustomerName(), transac.getCustomerEmail(), transac.getCustomerPhone(), transac.getTotalCustomer(),
                             transac.getActivity(), transac.getExtraAmenity(), transac.getFoodCost(),
                             transac.getCheckInDate(), transac.getCheckOutDate(), transac.getGstNumber(),
-                            transac.getInvoiceNumber(), transac.getLocalDateTime(), transac.getModeOfPayment()
+                            transac.getInvoiceNumber(), transac.getLocalDateTime(), transac.getModeOfPayment(), transac.getTotalCost()
                     );
                 }
                 response.setContentType("text/csv");

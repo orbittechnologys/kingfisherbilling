@@ -1,5 +1,6 @@
 package com.ot.bill.controller;
 
+import com.lowagie.text.DocumentException;
 import com.ot.bill.dao.BillDao;
 import com.ot.bill.model.Bill;
 import com.ot.bill.model.ResponseStructure;
@@ -11,11 +12,14 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -38,21 +42,23 @@ public class BillController {
         return billService.saveBill(bill, amount, days);
     }
 
-    @GetMapping("/generateAndUploadPDF/{id}")
-    public String generateAndUploadPDF(@PathVariable String id) {
+    @GetMapping("/generate-pdf/{id}")
+    public ResponseEntity<byte[]> generateBillPdf(@PathVariable String id) {
         try {
-            Bill bill = billDao.findByBillId(id);
-            if (bill != null) {
-                String pdfFileName = bill.getId() + "-" + bill.getCustomerName() + "-" + LocalDate.now() + ".pdf";
-                billService.generateUserPDF(bill, pdfFileName);
-                return billService.uploadToUserS3Bucket(pdfFileName);
-            }
-        } catch (Exception e) {
+            Bill bill = billDao.findByBillId(id);  // Create an instance of your Bill class with the necessary data
+
+            byte[] pdfBytes = billService.generateBillPdf(bill);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_PDF);
+            headers.setContentDispositionFormData("attachment", bill.getId()+"_"+LocalDate.now()+".pdf");
+            return new ResponseEntity<>(pdfBytes, headers, HttpStatus.OK);
+        } catch (DocumentException | IOException e) {
             e.printStackTrace();
-            return "Error generating or uploading PDF!";
+            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
         }
-        return null;
     }
+
 
     @Operation(summary = "Fetch All Bills With Pagination And Sort", description = "Return The List Of Bills With Pagination And Sort")
     @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Fetched All The Bills Object")})
