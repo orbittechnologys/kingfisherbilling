@@ -25,8 +25,6 @@ public class Bill {
 
     private String customerName;
 
-    private String customerEmail;
-
     private String customerPhone;
 
     private double totalCustomer;
@@ -61,7 +59,11 @@ public class Bill {
 
     private String invoiceNumber;
 
+    private double packageCost;
+
     private double totalCost;
+
+    private double grandTotal;
 
     private LocalDate localDate;
 

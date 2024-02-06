@@ -42,35 +42,32 @@ public class BillService {
     @Autowired
     private BillDao billDao;
 
-    public ResponseEntity<ResponseStructure<Bill>> saveBill(Bill bill, double amount, double days) {
+    public ResponseEntity<ResponseStructure<Bill>> saveBill(Bill bill, double amount, double days, int kids) {
         ResponseStructure<Bill> responseStructure = new ResponseStructure<>();
         responseStructure.setStatus(HttpStatus.CREATED.value());
         responseStructure.setMessage("Save Bill");
-
+        double kidsAmount = kids * (amount / 2) * days;
         double firstAmount = bill.getActivity() + bill.getFoodCost() + bill.getExtraAmenity();
-
-        double secondAmount = bill.getTotalCustomer() * amount * days;
-
-        double finalAmount = firstAmount + secondAmount;
-
+        double secondAmount = (bill.getTotalCustomer() - kids) * amount * days;
+        bill.setPackageCost(secondAmount + kidsAmount);
+        double finalAmount = firstAmount + secondAmount + kidsAmount;
         if (bill.getAdvancePayment() > 0) {
-            double finalPayment = finalAmount - bill.getAdvancePayment();
-            bill.setTotalCost(finalPayment);
-            bill.setGstNumber("29AEPPD8610N1ZY");
-            bill.setInvoiceNumber("INVOICE-" + UUID.randomUUID().toString().split("-")[0].toUpperCase());
-            bill.setLocalDate(LocalDate.now());
-            Bill b = billDao.saveBill(bill);
-            responseStructure.setData(b);
-            return new ResponseEntity<>(responseStructure, HttpStatus.CREATED);
+            finalAmount -= bill.getAdvancePayment();
         }
         bill.setTotalCost(finalAmount);
+        bill.setGrandTotal(finalAmount);
         bill.setGstNumber("29AEPPD8610N1ZY");
-        bill.setInvoiceNumber("INVOICE-" + UUID.randomUUID().toString().split("-")[0].toUpperCase());
+        bill.setInvoiceNumber(generateInvoiceNumber());
         bill.setLocalDate(LocalDate.now());
         Bill b = billDao.saveBill(bill);
         responseStructure.setData(b);
         return new ResponseEntity<>(responseStructure, HttpStatus.CREATED);
     }
+
+    private String generateInvoiceNumber() {
+        return "INVOICE-" + UUID.randomUUID().toString().split("-")[0].toUpperCase();
+    }
+
 
     public static byte[] generateBillPdf(Bill bill) throws IOException {
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
@@ -177,12 +174,12 @@ public class BillService {
         if (bill.size() > 0) {
             try (PrintWriter writer = response.getWriter();
                  CSVPrinter csvPrinter = new CSVPrinter(writer, CSVFormat.DEFAULT)) {
-                csvPrinter.printRecord("Customer Name", "Customer Email", "Customer PhoneNumber", "Total Customer",
+                csvPrinter.printRecord("Customer Name", "Customer PhoneNumber", "Total Customer",
                         "Activity", "Extra Amenity", "Food Cost", "CheckIn Date", "CheckOut Date", "Gst Number",
                         "Invoice Number", "Bill Date Time", "Mode Of Payment", "Total Cost");
                 for (Bill transac : bill) {
                     csvPrinter.printRecord(
-                            transac.getCustomerName(), transac.getCustomerEmail(), transac.getCustomerPhone(), transac.getTotalCustomer(),
+                            transac.getCustomerName(), transac.getCustomerPhone(), transac.getTotalCustomer(),
                             transac.getActivity(), transac.getExtraAmenity(), transac.getFoodCost(),
                             transac.getCheckInDate(), transac.getCheckOutDate(), transac.getGstNumber(),
                             transac.getInvoiceNumber(), transac.getLocalDateTime(), transac.getModeOfPayment(), transac.getTotalCost()

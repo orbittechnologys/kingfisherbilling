@@ -37,9 +37,9 @@ public class BillController {
     @Operation(summary = "Save Bill", description = "Input is Object and return Bill object")
     @ApiResponses(value = {@ApiResponse(responseCode = "201", description = "CREATED"),
             @ApiResponse(responseCode = "201", description = "Bill Already Exist")})
-    @PostMapping(value = "/save/{amount}/{days}", consumes = {MediaType.APPLICATION_JSON_VALUE}, produces = {MediaType.APPLICATION_JSON_VALUE})
-    public ResponseEntity<ResponseStructure<Bill>> saveBill(@RequestBody Bill bill, @PathVariable double amount, @PathVariable double days) {
-        return billService.saveBill(bill, amount, days);
+    @PostMapping(value = "/save/{amount}/{days}/{kids}", consumes = {MediaType.APPLICATION_JSON_VALUE}, produces = {MediaType.APPLICATION_JSON_VALUE})
+    public ResponseEntity<ResponseStructure<Bill>> saveBill(@RequestBody Bill bill, @PathVariable double amount, @PathVariable double days, @PathVariable int kids) {
+        return billService.saveBill(bill, amount, days, kids);
     }
 
     @GetMapping("/generate-pdf/{id}")
@@ -51,7 +51,7 @@ public class BillController {
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_PDF);
-            headers.setContentDispositionFormData("attachment", bill.getId()+"_"+LocalDate.now()+".pdf");
+            headers.setContentDispositionFormData("attachment", bill.getId() + "_" + LocalDate.now() + ".pdf");
             return new ResponseEntity<>(pdfBytes, headers, HttpStatus.OK);
         } catch (DocumentException | IOException e) {
             e.printStackTrace();
@@ -85,6 +85,7 @@ public class BillController {
                                   @PathVariable LocalDate endDate) throws Exception {
         billService.generateBillTransactionCSV(response, startDate, endDate);
     }
+
     @GetMapping(value = "/phone/{phone}", produces = {MediaType.APPLICATION_JSON_VALUE})
     public ResponseEntity<ResponseStructure<List<Bill>>> findByCustomerPhone(String phone) {
         return billService.findByCustomerPhone(phone);

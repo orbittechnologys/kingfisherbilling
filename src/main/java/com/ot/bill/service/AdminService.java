@@ -11,6 +11,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -114,14 +116,13 @@ public class AdminService {
         if (admin != null) {
             String checkPass = Encryption.decrypt(admin.getPassword());
             if (password.equals(checkPass)) {
-
-                int otp = (int) (Math.random() * (9999 - 1000) + 1000);
-                admin.setOtp(otp);
-                adminDao.saveAdmin(admin);
+//                int otp = (int) (Math.random() * (9999 - 1000) + 1000);
+//                admin.setOtp(otp);
+//                adminDao.saveAdmin(admin);
                 emailSender.sendSimpleEmail(admin.getEmail(),
-                        "Enter the Otp to Validate Your Self \n The Generated Otp " + otp, "Verify Your Otp");
+                        "User has logged in to the Billing System - Kingfisher\n" + LocalDate.now()+" "+ LocalTime.now(), "Software Login Activity");
                 responseStructure.setStatus(HttpStatus.OK.value());
-                responseStructure.setMessage("OTP SENT");
+                responseStructure.setMessage("Mail SENT");
                 responseStructure.setData(admin);
                 return new ResponseEntity<>(responseStructure, HttpStatus.OK);
             } else {
